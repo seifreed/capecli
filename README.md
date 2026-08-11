@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pypi.org/project/capecli/"><img src="https://img.shields.io/pypi/v/capecli?style=flat-square&logo=pypi&logoColor=white" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-3.14%2B-blue?style=flat-square&logo=python&logoColor=white" alt="Python Versions">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square" alt="Platforms">
   <img src="https://img.shields.io/badge/coverage-100%25%20line%20%26%20branch-brightgreen?style=flat-square" alt="Coverage">
@@ -56,7 +57,11 @@ Exit codes      0 on success, 1 on API or configuration errors, 2 on usage
 
 ## Installation
 
-`capecli` is not published on PyPI; install it from source.
+```bash
+pip install capecli
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/seifreed/capecli.git

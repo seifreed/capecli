@@ -463,10 +463,15 @@ def test_a_download_that_cannot_be_moved_into_place_reports_why(
     client: CapeClient, tmp_path: Path
 ) -> None:
     """A destination that is a directory cannot be replaced by a file, and the
-    partial write beside it goes away rather than outliving the attempt."""
+    partial write beside it goes away rather than outliving the attempt.
+
+    Which OSError says so is the platform's to choose -- POSIX raises
+    IsADirectoryError and Windows PermissionError -- and pinning the errno
+    would be testing the operating system rather than this.
+    """
     dest = tmp_path / "a-directory.pcap"
     dest.mkdir()
-    with pytest.raises(IsADirectoryError):
+    with pytest.raises(OSError):
         client.task_pcap(7, dest)
     assert dest.is_dir()
     assert list(tmp_path.iterdir()) == [dest]
@@ -497,8 +502,12 @@ def test_a_download_keeps_the_mode_of_the_file_it_replaces(
     dest = tmp_path / "earlier.pcap"
     dest.write_bytes(b"an earlier download")
     dest.chmod(0o644)
+    # What chmod left is the platform's answer, not ours: Windows honours only
+    # the read-only bit, so 0o644 lands as 0o666 there. Reading it back is what
+    # makes this about the mode being carried over rather than about the number.
+    before = dest.stat().st_mode & 0o777
     client.task_pcap(7, dest)
-    assert dest.stat().st_mode & 0o777 == 0o644
+    assert dest.stat().st_mode & 0o777 == before
 
 
 def test_a_download_replaces_what_was_there_and_leaves_nothing_beside_it(

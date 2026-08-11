@@ -24,7 +24,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e . --group dev
       - name: Tests
+        if: runner.os != 'Windows'
         run: pytest
+
+      # Same suite, without the coverage floor. Three tests need a reader that
+      # goes away mid-write, and nothing in-process produces one on Windows, so
+      # the handler they cover is unreachable here and the floor would fail on
+      # a gap the platform imposes. It is still enforced on the other two.
+      - name: Tests (no coverage floor)
+        if: runner.os == 'Windows'
+        run: pytest --cov-fail-under=0
 
   lint:
     runs-on: ubuntu-latest

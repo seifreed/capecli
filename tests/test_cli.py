@@ -3,6 +3,7 @@
 import contextlib
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -513,6 +514,18 @@ def test_toon_says_so_when_a_response_has_no_toon_form(run: CliRunner) -> None:
     )
 
 
+# A reader that goes away is EPIPE on POSIX, and _write is written around
+# that. Closing a pipe's read end in the same process does not reproduce it on
+# Windows -- the CRT answers the write with EINVAL, which is not a reader going
+# away and must not be swallowed as one -- so the handler is only reachable
+# there through a real pipeline, which is not what these three are about.
+a_real_broken_pipe = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="a closed pipe read end gives EINVAL here, not EPIPE",
+)
+
+
+@a_real_broken_pipe
 def test_a_reader_that_stops_early_is_not_a_failure() -> None:
     """`capecli task list | head` closes the pipe once it has its lines. The
     write fails, and so does the flush the interpreter does on the way out;
@@ -523,6 +536,7 @@ def test_a_reader_that_stops_early_is_not_a_failure() -> None:
         assert _write("a line the reader will never take", closed_pipe) is False
 
 
+@a_real_broken_pipe
 def test_a_stopped_reader_is_reported_as_the_shell_would(cape_url: str) -> None:
     """`capecli task list | head` ends with the reader gone, which a shell
     reports as 141. The request succeeded, so it is not an error exit either."""
@@ -536,6 +550,7 @@ def test_a_stopped_reader_is_reported_as_the_shell_would(cape_url: str) -> None:
     assert code == BROKEN_PIPE_EXIT
 
 
+@a_real_broken_pipe
 def test_a_stopped_reader_costs_no_descriptor() -> None:
     """Retiring the stream opens the null device, and that handle is spare once
     it has been duplicated onto the stream. Holding it would spend a descriptor

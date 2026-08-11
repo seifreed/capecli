@@ -386,6 +386,7 @@ If this project is useful in your workflows, you can support development:
 
 - Author: **Marc Rivero López** | [@seifreed](https://github.com/seifreed)
 - Repository: [github.com/seifreed/capecli](https://github.com/seifreed/capecli)
+- License: [MIT](LICENSE)
 
 ---
 

@@ -4,6 +4,9 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,10 +15,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - name: Build sdist and wheel
+
+      - name: Install
         run: |
-          python -m pip install --upgrade pip build
-          python -m build
+          python -m pip install --upgrade pip
+          pip install -e . --group dev
+
+      # A tag names a version to everyone who reads it. PyPI refuses to replace
+      # a release, so a tag that disagrees with the package would either publish
+      # the wrong number or fail at the upload, after the build had passed.
+      - name: The tag has to name the packaged version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="$(python -c 'import capecli; print(capecli.__version__)')"
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "tag $TAG does not name version $VERSION" >&2
+            exit 1
+          fi
+          echo "$TAG names version $VERSION"
+
+      # A tag can point at any commit, including one that never went through CI.
+      - name: Tests
+        run: pytest
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      # Catches a README that PyPI would refuse to render, before an upload that
+      # cannot be taken back.
+      - name: Check the distributions
+        run: twine check --strict dist/*
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -26,6 +57,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
+      # Trusted Publishing: PyPI verifies this workflow's own identity, so there
+      # is no API token to store or rotate.
       id-token: write
     steps:
       - uses: actions/download-artifact@v4
@@ -34,3 +67,24 @@ jobs:
           path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release create "$TAG" dist/* \
+            --repo "$REPO" \
+            --title "$TAG" \
+            --generate-notes

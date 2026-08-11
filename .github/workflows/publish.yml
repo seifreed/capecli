@@ -74,10 +74,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      # Full history so the annotated tag's own message is readable below.
+      # fetch-tags matters here: without it checkout leaves refs/tags/<tag> as a
+      # lightweight pointer at the commit even with fetch-depth 0, and reading
+      # the "tag message" then quietly returns the last commit message instead.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/download-artifact@v4
         with:
@@ -94,8 +97,13 @@ jobs:
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          NOTES="$(git tag -l --format='%(contents)' "$TAG")"
-          if [ -n "$NOTES" ]; then
+          # An annotated tag is its own object and carries a message; a
+          # lightweight one is a pointer at the commit, and asking it for a
+          # message hands back the commit's. Ask what kind it is, not whether
+          # something came back.
+          KIND="$(git for-each-ref "refs/tags/$TAG" --format='%(objecttype)')"
+          if [ "$KIND" = "tag" ]; then
+            NOTES="$(git tag -l --format='%(contents)' "$TAG")"
             gh release create "$TAG" dist/* \
               --repo "$REPO" --title "$TAG" --notes "$NOTES"
           else

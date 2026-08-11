@@ -74,17 +74,31 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Full history so the annotated tag's own message is readable below.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
+
+      # The release notes are the tag's message. They are written once, when
+      # the tag is made, and live in git rather than in a workflow -- so
+      # `git show v0.1.0` and the GitHub release say the same thing. A
+      # lightweight tag carries no message, and falls back to generated notes.
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          gh release create "$TAG" dist/* \
-            --repo "$REPO" \
-            --title "$TAG" \
-            --generate-notes
+          NOTES="$(git tag -l --format='%(contents)' "$TAG")"
+          if [ -n "$NOTES" ]; then
+            gh release create "$TAG" dist/* \
+              --repo "$REPO" --title "$TAG" --notes "$NOTES"
+          else
+            gh release create "$TAG" dist/* \
+              --repo "$REPO" --title "$TAG" --generate-notes
+          fi

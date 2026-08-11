@@ -176,12 +176,17 @@ def test_an_empty_path_segment_is_refused(
 @pytest.mark.parametrize(
     "name",
     [
-        pytest.param(os.fsdecode(b"capture\xff\xfe.pcap"), id="no-codec-can-spell"),
+        # The surrogates are written out rather than obtained from
+        # os.fsdecode(b"capture\xff\xfe.pcap"): that is what POSIX hands back
+        # for those bytes, but Windows decodes filenames with surrogatepass
+        # rather than surrogateescape, and raises on them instead -- at import,
+        # taking the whole module's collection with it.
+        pytest.param("capture\udcff\udcfe.pcap", id="no-codec-can-spell"),
         pytest.param("中" * 40, id="three-byte-characters"),
         pytest.param("\U0001f600" * 40, id="four-byte-characters"),
         pytest.param("é" * 80, id="two-byte-characters"),
         pytest.param("a" * 400, id="ascii"),
-        pytest.param(os.fsdecode(b"\xff" * 400), id="undecodable-bytes"),
+        pytest.param("\udcff" * 400, id="undecodable-bytes"),
         pytest.param("", id="empty"),
     ],
 )
@@ -204,7 +209,7 @@ def test_a_temporary_can_be_named_after_any_destination_the_system_accepts(
         pytest.param("中" * 40, id="three-byte-characters"),
         pytest.param("\U0001f600" * 40, id="four-byte-characters"),
         pytest.param("a" * 400, id="ascii"),
-        pytest.param(os.fsdecode(b"\xff" * 400), id="undecodable-bytes"),
+        pytest.param("\udcff" * 400, id="undecodable-bytes"),
     ],
 )
 def test_a_temporary_name_stays_within_the_byte_limit(name: str) -> None:

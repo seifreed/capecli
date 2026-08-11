@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "capecli"
+version = "0.1.0"
+description = "CLI and library for the CAPE v2 sandbox REST API"
+readme = "README.md"
+requires-python = ">=3.14"
+authors = [{ name = "Marc Rivero" }]
+dependencies = ["httpx>=0.28", "prettytable>=3.18"]
+
+[dependency-groups]
+dev = [
+    "black>=25.1",
+    "ruff>=0.12",
+    "mypy>=1.17",
+    "pytest>=8.4",
+    "pytest-cov>=6.2",
+    "bandit>=1.8",
+    "pip-audit>=2.9",
+]
+
+[project.scripts]
+capecli = "capecli.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["capecli"]
+
+[tool.black]
+target-version = ["py314"]
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "C4", "RUF"]
+
+[tool.mypy]
+strict = true
+files = ["capecli", "tests"]
+# docker/ is a local, untracked CAPE cluster we point capecli at. Its machinery
+# module subclasses a base that only exists inside the CAPE tree, so it can only
+# be checked there.
+exclude = ["^venv/", "^docker/"]
+
+[tool.bandit]
+# venv is other people's code. docker/ is that same local test rig: its scripts
+# spawn processes on purpose -- one runs capecli, the other runs CAPE's own
+# utils/process.py -- so B404/B603 describe what they are for, and silencing
+# those in place would need suppressions the package does not carry.
+exclude_dirs = ["venv", ".venv", "docker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=capecli --cov-branch --cov-report=term-missing --cov-fail-under=100"
+# Warnings are defects here too: a leaked socket and a pending deprecation both
+# arrive this way, and neither shows up as a failing assertion.
+filterwarnings = ["error"]
